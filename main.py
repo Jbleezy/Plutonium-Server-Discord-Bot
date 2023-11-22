@@ -16,12 +16,12 @@ firebase_admin.initialize_app(cred, {
 
 pluto_url = "https://plutonium.pw/api/servers"
 bot = commands.Bot(command_prefix="/", intents=discord.Intents.all())
-db_root = db.reference("/")
+db_ref = db.reference("/")
 
 def get_pluto_server_text(id, pluto_servers):
     text = ""
-    db_games = db_root.child(id).child("games").get()
-    db_server_name = db_root.child(id).child("server_name").get()
+    db_games = db_ref.child(id).child("games").get()
+    db_server_name = db_ref.child(id).child("server_name").get()
 
     for pluto_server in pluto_servers:
         game = pluto_server["game"]
@@ -63,9 +63,9 @@ async def main():
 
     for guild in bot.guilds:
         id = str(guild.id)
-        db_channel_id = db_root.child(id).child("channel").get()
-        db_message_id = db_root.child(id).child("message").get()
-        db_text = db_root.child(id).child("text").get()
+        db_channel_id = db_ref.child(id).child("channel").get()
+        db_message_id = db_ref.child(id).child("message").get()
+        db_text = db_ref.child(id).child("text").get()
 
         if not db_channel_id:
             continue
@@ -75,14 +75,14 @@ async def main():
         if db_text == text:
             continue
 
-        db_root.child(id).child("text").set(text)
+        db_ref.child(id).child("text").set(text)
 
         channel = bot.get_channel(db_channel_id)
 
         if db_message_id:
             try:
                 message = await channel.fetch_message(db_message_id)
-                db_root.child(id).child("message").set(0)
+                db_ref.child(id).child("message").set(0)
                 await message.delete()
             except Exception as e:
                 print(guild.name, "-", e)
@@ -90,7 +90,7 @@ async def main():
         if len(text) > 0:
             try:
                 msg = await channel.send(text)
-                db_root.child(id).child("message").set(msg.id)
+                db_ref.child(id).child("message").set(msg.id)
             except Exception as e:
                 print(guild.name, "-", e)
 
@@ -103,18 +103,18 @@ async def on_ready():
 @bot.event
 async def on_guild_join(guild):
     id = str(guild.id)
-    db_root.child(id).child("server_name").set("")
-    db_root.child(id).child("games").set("")
-    db_root.child(id).child("channel").set(0)
-    db_root.child(id).child("message").set(0)
-    db_root.child(id).child("text").set("")
+    db_ref.child(id).child("server_name").set("")
+    db_ref.child(id).child("games").set("")
+    db_ref.child(id).child("channel").set(0)
+    db_ref.child(id).child("message").set(0)
+    db_ref.child(id).child("text").set("")
 
 @bot.tree.command(name="set_server_name", description="Set the name of the servers you want to show.")
 @app_commands.describe(name="Substring of the name of the servers")
 @commands.has_permissions(administrator=True)
 async def set_server_name(interaction:discord.Interaction, name:str):
     id = str(interaction.guild.id)
-    db_root.child(id).child("server_name").set(name)
+    db_ref.child(id).child("server_name").set(name)
     await interaction.response.send_message("Server name set.")
 
 @bot.tree.command(name="set_games", description="Set which games you want to show (space separated).")
@@ -122,7 +122,7 @@ async def set_server_name(interaction:discord.Interaction, name:str):
 @commands.has_permissions(administrator=True)
 async def set_games(interaction:discord.Interaction, games:str=""):
     id = str(interaction.guild.id)
-    db_root.child(id).child("games").set(games)
+    db_ref.child(id).child("games").set(games)
     await interaction.response.send_message("Server games set.")
 
 @bot.tree.command(name="set_channel", description="Set the channel where you want the servers to show.")
@@ -130,7 +130,7 @@ async def set_games(interaction:discord.Interaction, games:str=""):
 @commands.has_permissions(administrator=True)
 async def set_channel(interaction:discord.Interaction, channel:discord.TextChannel):
     id = str(interaction.guild.id)
-    db_root.child(id).child("channel").set(channel.id)
+    db_ref.child(id).child("channel").set(channel.id)
     await interaction.response.send_message("Channel set.")
 
 bot.run(os.environ.get("DISCORD_API_TOKEN"))
