@@ -9,7 +9,7 @@ from firebase_admin import credentials, db
 
 load_dotenv()
 
-cred = credentials.Certificate("firebase.json")
+cred = credentials.Certificate("credentials.json")
 firebase_admin.initialize_app(cred, {
     "databaseURL": os.environ.get("FIREBASE_URL")
 })
