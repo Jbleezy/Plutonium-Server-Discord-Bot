@@ -1,71 +1,48 @@
 import discord
+import firebase_admin
 import os
 import requests
-from discord.ext import tasks
+from discord import app_commands
+from discord.ext import commands, tasks
 from dotenv import load_dotenv
+from firebase_admin import credentials, db
 
 load_dotenv()
-TOKEN = os.environ.get("DISCORD_API_TOKEN")
+
+cred = credentials.Certificate("firebase.json")
+firebase_admin.initialize_app(cred, {
+    "databaseURL": os.environ.get("FIREBASE_URL")
+})
 
 pluto_url = "https://plutonium.pw/api/servers"
-pluto_server_game = ""
-pluto_server_name = ""
-channel_name = ""
-client = discord.Client(intents=discord.Intents.default())
-channel_msgs = {}
-pluto_server_player_counts = {}
+bot = commands.Bot(command_prefix="/", intents=discord.Intents.all())
+db_root = db.reference("/")
 
-def get_pluto_server_info(pluto_servers):
-    pluto_servers_info = []
+def get_pluto_server_text(id, pluto_servers):
+    text = ""
+    db_games = db_root.child(id).child("games").get()
+    db_server_name = db_root.child(id).child("server_name").get()
 
     for pluto_server in pluto_servers:
-        if len(pluto_server_game) > 0 and pluto_server["game"] != pluto_server_game:
+        game = pluto_server["game"]
+        hostname = pluto_server["hostname"]
+        player_list = pluto_server["players"]
+        max_player_count = pluto_server["maxplayers"]
+
+        valid_game = db_games == ""
+
+        for db_game in db_games.split():
+            if game.lower() == db_game.lower():
+                valid_game = True
+                break
+
+        if not valid_game:
             continue
 
-        if pluto_server_name.lower() not in pluto_server["hostname"].lower():
+        if db_server_name.lower() not in hostname.lower():
             continue
-
-        pluto_server_info = {}
-
-        pluto_server_info["hostname"] = pluto_server["hostname"]
-        pluto_server_info["players"] = pluto_server["players"]
-        pluto_server_info["maxplayers"] = pluto_server["maxplayers"]
-
-        pluto_servers_info.append(pluto_server_info)
-
-    return pluto_servers_info
-
-def get_channel_id(guild):
-    for channel in guild.channels:
-        if not isinstance(channel, discord.channel.TextChannel):
-            continue
-
-        if channel_name.lower() not in channel.name.lower():
-            continue
-
-        return channel.id
-
-    return None
-
-@tasks.loop(seconds=5)
-async def main():
-    text = ""
-    update_msg = False
-
-    pluto_page = requests.get(pluto_url)
-    pluto_servers = pluto_page.json()
-    pluto_servers_info = get_pluto_server_info(pluto_servers)
-
-    for pluto_server_info in pluto_servers_info:
-        hostname = pluto_server_info["hostname"]
-        player_list = pluto_server_info["players"]
-        max_player_count = pluto_server_info["maxplayers"]
 
         player_count = len(player_list)
-
-        if hostname not in pluto_server_player_counts or pluto_server_player_counts[hostname] != player_count:
-            pluto_server_player_counts[hostname] = player_count
-            update_msg = True
 
         if player_count > 0:
             if len(text) > 0:
@@ -77,31 +54,83 @@ async def main():
         if len(text) >= 1000:
             break
 
-    if update_msg:
-        for guild in client.guilds:
-            channel_id = get_channel_id(guild)
+    return text
 
-            if not channel_id:
-                continue
+@tasks.loop(seconds=5)
+async def main():
+    pluto_page = requests.get(pluto_url)
+    pluto_servers = pluto_page.json()
 
-            channel = client.get_channel(channel_id)
+    for guild in bot.guilds:
+        id = str(guild.id)
+        db_channel_id = db_root.child(id).child("channel").get()
+        db_message_id = db_root.child(id).child("message").get()
+        db_text = db_root.child(id).child("text").get()
 
-            if channel_id in channel_msgs:
-                try:
-                    await channel_msgs[channel_id].delete()
-                except Exception as e:
-                    print(channel.guild.name, "-", e)
+        if not db_channel_id:
+            continue
 
-                del channel_msgs[channel_id]
+        text = get_pluto_server_text(id, pluto_servers)
 
-            if len(text) > 0:
-                try:
-                    channel_msgs[channel_id] = await channel.send(text)
-                except Exception as e:
-                    print(channel.guild.name, "-", e)
+        if db_text == text:
+            continue
 
-@client.event
+        db_root.child(id).child("text").set(text)
+
+        channel = bot.get_channel(db_channel_id)
+
+        if db_message_id:
+            try:
+                message = await channel.fetch_message(db_message_id)
+                db_root.child(id).child("message").set(0)
+                await message.delete()
+            except Exception as e:
+                print(guild.name, "-", e)
+
+        if len(text) > 0:
+            try:
+                msg = await channel.send(text)
+                db_root.child(id).child("message").set(msg.id)
+            except Exception as e:
+                print(guild.name, "-", e)
+
+@bot.event
 async def on_ready():
+    await bot.tree.sync()
+
     main.start()
 
-client.run(TOKEN)
+@bot.event
+async def on_guild_join(guild):
+    id = str(guild.id)
+    db_root.child(id).child("server_name").set("")
+    db_root.child(id).child("games").set("")
+    db_root.child(id).child("channel").set(0)
+    db_root.child(id).child("message").set(0)
+    db_root.child(id).child("text").set("")
+
+@bot.tree.command(name="set_server_name", description="Set the name of the servers you want to show.")
+@app_commands.describe(name="Substring of the name of the servers")
+@commands.has_permissions(administrator=True)
+async def set_server_name(interaction:discord.Interaction, name:str):
+    id = str(interaction.guild.id)
+    db_root.child(id).child("server_name").set(name)
+    await interaction.response.send_message("Server name set.")
+
+@bot.tree.command(name="set_games", description="Set which games you want to show (space separated).")
+@app_commands.describe(games="IW5, T4, T4ZM, T5, T5ZM, T6, T6ZM")
+@commands.has_permissions(administrator=True)
+async def set_games(interaction:discord.Interaction, games:str=""):
+    id = str(interaction.guild.id)
+    db_root.child(id).child("games").set(games)
+    await interaction.response.send_message("Server games set.")
+
+@bot.tree.command(name="set_channel", description="Set the channel where you want the servers to show.")
+@app_commands.describe(channel="Channel where you want the servers to show")
+@commands.has_permissions(administrator=True)
+async def set_channel(interaction:discord.Interaction, channel:discord.TextChannel):
+    id = str(interaction.guild.id)
+    db_root.child(id).child("channel").set(channel.id)
+    await interaction.response.send_message("Channel set.")
+
+bot.run(os.environ.get("DISCORD_API_TOKEN"))
