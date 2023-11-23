@@ -23,12 +23,15 @@ def get_pluto_server_text(pluto_servers, guild_obj):
     text = ""
     guild_games = guild_obj["games"]
     guild_server_name = guild_obj["server_name"]
+    guild_max_player_servers = guild_obj["max_player_servers"]
+    guild_zero_player_servers = guild_obj["zero_player_servers"]
 
     for pluto_server in pluto_servers:
         game = pluto_server["game"]
         hostname = pluto_server["hostname"]
         player_list = pluto_server["players"]
         max_player_count = pluto_server["maxplayers"]
+        player_count = len(player_list)
 
         if guild_games != "" and game not in guild_games.split():
             continue
@@ -36,14 +39,17 @@ def get_pluto_server_text(pluto_servers, guild_obj):
         if guild_server_name.lower() not in hostname.lower():
             continue
 
-        player_count = len(player_list)
+        if not guild_max_player_servers and player_count >= max_player_count:
+            continue
 
-        if player_count > 0:
-            if text != "":
-                text += "\n\n"
+        if not guild_zero_player_servers and player_count == 0:
+            continue
 
-            text += hostname + "\n"
-            text += str(player_count) + "/" + str(max_player_count) + " players"
+        if text != "":
+            text += "\n\n"
+
+        text += hostname + "\n"
+        text += str(player_count) + "/" + str(max_player_count) + " players"
 
         if len(text) >= 1000:
             break
@@ -137,6 +143,8 @@ async def on_guild_join(guild):
     db_ref.child(id).child("channel_id").set(0)
     db_ref.child(id).child("edit_message").set(False)
     db_ref.child(id).child("pin_message").set(False)
+    db_ref.child(id).child("zero_player_servers").set(False)
+    db_ref.child(id).child("max_player_servers").set(True)
 
 @bot.tree.command(name="server-name", description="Set the name of the servers you want to show.")
 @app_commands.describe(name="Substring of the name of the servers")
@@ -201,5 +209,21 @@ async def set_pin_message(interaction:discord.Interaction, option:bool):
     id = str(interaction.guild.id)
     db_ref.child(id).child("pin_message").set(option)
     await interaction.response.send_message("Pin message set.")
+
+@bot.tree.command(name="show-zero-player-servers", description="Show servers that have zero players (default: False).")
+@app_commands.describe(option="True or False")
+@commands.has_permissions(administrator=True)
+async def set_zero_player_servers(interaction:discord.Interaction, option:bool):
+    id = str(interaction.guild.id)
+    db_ref.child(id).child("zero_player_servers").set(option)
+    await interaction.response.send_message("Show zero player servers set.")
+
+@bot.tree.command(name="show-max-player-servers", description="Show servers that have max players (default: True).")
+@app_commands.describe(option="True or False")
+@commands.has_permissions(administrator=True)
+async def set_max_player_servers(interaction:discord.Interaction, option:bool):
+    id = str(interaction.guild.id)
+    db_ref.child(id).child("max_player_servers").set(option)
+    await interaction.response.send_message("Show max player servers set.")
 
 bot.run(os.environ.get("DISCORD_API_TOKEN"))
