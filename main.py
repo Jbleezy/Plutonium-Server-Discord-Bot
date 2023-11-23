@@ -78,18 +78,43 @@ async def main():
 
         guild_data["text"] = text
 
+        message = None
+
         if guild_data["message_id"]:
             try:
                 message = await channel.fetch_message(guild_data["message_id"])
-                del guild_data["message_id"]
-                await message.delete()
             except Exception as e:
                 print(guild.name, "-", e)
 
-        if text != "":
+        if guild_obj["edit_message"]:
+            if text == "":
+                text = "No servers to show"
+
+            if message:
+                try:
+                    await message.edit(content=text)
+                except Exception as e:
+                    print(guild.name, "-", e)
+            else:
+                try:
+                    message = await channel.send(text)
+                    guild_data["message_id"] = message.id
+                except Exception as e:
+                    print(guild.name, "-", e)
+        else:
+            if message:
+                try:
+                    del guild_data["message_id"]
+                    await message.delete()
+                except Exception as e:
+                    print(guild.name, "-", e)
+
+            if text == "":
+                return
+
             try:
-                msg = await channel.send(text)
-                guild_data["message_id"] = msg.id
+                message = await channel.send(text)
+                guild_data["message_id"] = message.id
             except Exception as e:
                 print(guild.name, "-", e)
 
@@ -104,6 +129,7 @@ async def on_guild_join(guild):
     db_ref.child(id).child("server_name").set("")
     db_ref.child(id).child("games").set("")
     db_ref.child(id).child("channel_id").set(0)
+    db_ref.child(id).child("edit_message").set(False)
 
 @bot.tree.command(name="server-name", description="Set the name of the servers you want to show.")
 @app_commands.describe(name="Substring of the name of the servers")
@@ -113,10 +139,10 @@ async def set_server_name(interaction:discord.Interaction, name:str):
     db_ref.child(id).child("server_name").set(name)
     await interaction.response.send_message("Server name set.")
 
-@bot.tree.command(name="game", description="Add a game you want to show (shows all by default).")
-@app_commands.describe(game="ALL, IW5, T4, T4ZM, T5, T5ZM, T6, T6ZM")
+@bot.tree.command(name="game", description="Add a game you want to show (default: All).")
+@app_commands.describe(game="All, IW5, T4, T4ZM, T5, T5ZM, T6, T6ZM")
 @app_commands.choices(game=[
-    app_commands.Choice(name="ALL", value="all"),
+    app_commands.Choice(name="All", value="all"),
     app_commands.Choice(name="IW5", value="iw5"),
     app_commands.Choice(name="T4", value="t4"),
     app_commands.Choice(name="T4ZM", value="t4zm"),
@@ -152,5 +178,13 @@ async def set_channel(interaction:discord.Interaction, channel:discord.TextChann
     id = str(interaction.guild.id)
     db_ref.child(id).child("channel_id").set(channel.id)
     await interaction.response.send_message("Channel set.")
+
+@bot.tree.command(name="edit-message", description="Edit existing message instead of creating a new message (default: False).")
+@app_commands.describe(option="True or False")
+@commands.has_permissions(administrator=True)
+async def set_edit_message(interaction:discord.Interaction, option:bool):
+    id = str(interaction.guild.id)
+    db_ref.child(id).child("edit_message").set(option)
+    await interaction.response.send_message("Edit message set.")
 
 bot.run(os.environ.get("DISCORD_API_TOKEN"))
