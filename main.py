@@ -109,7 +109,7 @@ async def on_guild_join(guild):
     db_ref.child(id).child("message").set(0)
     db_ref.child(id).child("text").set("")
 
-@bot.tree.command(name="set_server_name", description="Set the name of the servers you want to show.")
+@bot.tree.command(name="server-name", description="Set the name of the servers you want to show.")
 @app_commands.describe(name="Substring of the name of the servers")
 @commands.has_permissions(administrator=True)
 async def set_server_name(interaction:discord.Interaction, name:str):
@@ -117,15 +117,39 @@ async def set_server_name(interaction:discord.Interaction, name:str):
     db_ref.child(id).child("server_name").set(name)
     await interaction.response.send_message("Server name set.")
 
-@bot.tree.command(name="set_games", description="Set which games you want to show (space separated).")
-@app_commands.describe(games="IW5, T4, T4ZM, T5, T5ZM, T6, T6ZM")
+@bot.tree.command(name="game", description="Add a game you want to show (shows all by default).")
+@app_commands.describe(game="ALL, IW5, T4, T4ZM, T5, T5ZM, T6, T6ZM")
+@app_commands.choices(game=[
+    app_commands.Choice(name="ALL", value="all"),
+    app_commands.Choice(name="IW5", value="iw5"),
+    app_commands.Choice(name="T4", value="t4"),
+    app_commands.Choice(name="T4ZM", value="t4zm"),
+    app_commands.Choice(name="T5", value="t5"),
+    app_commands.Choice(name="T5ZM", value="t5zm"),
+    app_commands.Choice(name="T6", value="t6"),
+    app_commands.Choice(name="T6ZM", value="t6zm")
+])
 @commands.has_permissions(administrator=True)
-async def set_games(interaction:discord.Interaction, games:str=""):
+async def set_game(interaction:discord.Interaction, game:app_commands.Choice[str]):
     id = str(interaction.guild.id)
-    db_ref.child(id).child("games").set(games)
-    await interaction.response.send_message("Server games set.")
 
-@bot.tree.command(name="set_channel", description="Set the channel where you want the servers to show.")
+    if game.value == "all":
+        db_ref.child(id).child("games").set("")
+    else:
+        db_games = db_ref.child(id).child("games").get()
+
+        if game.value in db_games.split():
+            await interaction.response.send_message("Game already added.")
+            return
+
+        if db_games == "":
+            db_ref.child(id).child("games").set(game.value)
+        else:
+            db_ref.child(id).child("games").set(db_games + " " + game.value)
+
+    await interaction.response.send_message("Game added.")
+
+@bot.tree.command(name="channel", description="Set the channel where you want the servers to show.")
 @app_commands.describe(channel="Channel where you want the servers to show")
 @commands.has_permissions(administrator=True)
 async def set_channel(interaction:discord.Interaction, channel:discord.TextChannel):
