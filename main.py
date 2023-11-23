@@ -156,15 +156,15 @@ async def set_server_name(interaction:discord.Interaction, name:str):
     await interaction.response.send_message("Server name set.")
 
 @bot.tree.command(name="game", description="Add a game you want to show (default: All).")
-@app_commands.describe(game="All, IW5, T4, T4ZM, T5, T5ZM, T6, T6ZM")
+@app_commands.describe(game="All, IW5MP, T4MP, T4SP, T5MP, T5SP, T6MP, T6ZM")
 @app_commands.choices(game=[
     app_commands.Choice(name="All", value="all"),
-    app_commands.Choice(name="IW5", value="iw5"),
-    app_commands.Choice(name="T4", value="t4"),
-    app_commands.Choice(name="T4ZM", value="t4zm"),
-    app_commands.Choice(name="T5", value="t5"),
-    app_commands.Choice(name="T5ZM", value="t5zm"),
-    app_commands.Choice(name="T6", value="t6"),
+    app_commands.Choice(name="IW5MP", value="iw5mp"),
+    app_commands.Choice(name="T4MP", value="t4mp"),
+    app_commands.Choice(name="T4SP", value="t4sp"),
+    app_commands.Choice(name="T5MP", value="t5mp"),
+    app_commands.Choice(name="T5SP", value="t5sp"),
+    app_commands.Choice(name="T6MP", value="t6mp"),
     app_commands.Choice(name="T6ZM", value="t6zm")
 ])
 @commands.has_permissions(administrator=True)
