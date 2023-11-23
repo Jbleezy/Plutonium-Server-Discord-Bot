@@ -99,6 +99,9 @@ async def main():
                 try:
                     message = await channel.send(text)
                     guild_data["message_id"] = message.id
+
+                    if guild_obj["pin_message"]:
+                        await message.pin()
                 except Exception as e:
                     print(guild.name, "-", e)
         else:
@@ -115,6 +118,9 @@ async def main():
             try:
                 message = await channel.send(text)
                 guild_data["message_id"] = message.id
+
+                if guild_obj["pin_message"]:
+                    await message.pin()
             except Exception as e:
                 print(guild.name, "-", e)
 
@@ -130,6 +136,7 @@ async def on_guild_join(guild):
     db_ref.child(id).child("games").set("")
     db_ref.child(id).child("channel_id").set(0)
     db_ref.child(id).child("edit_message").set(False)
+    db_ref.child(id).child("pin_message").set(False)
 
 @bot.tree.command(name="server-name", description="Set the name of the servers you want to show.")
 @app_commands.describe(name="Substring of the name of the servers")
@@ -186,5 +193,13 @@ async def set_edit_message(interaction:discord.Interaction, option:bool):
     id = str(interaction.guild.id)
     db_ref.child(id).child("edit_message").set(option)
     await interaction.response.send_message("Edit message set.")
+
+@bot.tree.command(name="pin-message", description="Pin message when it is created (default: False).")
+@app_commands.describe(option="True or False")
+@commands.has_permissions(administrator=True)
+async def set_pin_message(interaction:discord.Interaction, option:bool):
+    id = str(interaction.guild.id)
+    db_ref.child(id).child("pin_message").set(option)
+    await interaction.response.send_message("Pin message set.")
 
 bot.run(os.environ.get("DISCORD_API_TOKEN"))
