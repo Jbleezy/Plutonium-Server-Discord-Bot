@@ -60,6 +60,7 @@ def get_pluto_server_text(pluto_servers, guild_obj):
 async def main():
     pluto_page = requests.get(pluto_url)
     pluto_servers = pluto_page.json()
+    pluto_servers = sorted(pluto_servers, key=lambda a : (a["game"], a["hostname"]))
     db_obj = db_ref.get()
 
     for guild in bot.guilds:
