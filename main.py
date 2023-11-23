@@ -1,6 +1,7 @@
 import discord
 import firebase_admin
 import os
+import re
 import requests
 from discord import app_commands
 from discord.ext import commands, tasks
@@ -31,7 +32,9 @@ def get_pluto_server_text(pluto_servers, guild_obj):
         hostname = pluto_server["hostname"]
         player_list = pluto_server["players"]
         max_player_count = pluto_server["maxplayers"]
+
         player_count = len(player_list)
+        hostname = re.sub("\^([0-9])", "", hostname)
 
         if guild_games != "" and game not in guild_games.split():
             continue
