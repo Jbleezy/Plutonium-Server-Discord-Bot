@@ -14,7 +14,7 @@ firebase_admin.initialize_app(cred, {
     "databaseURL": os.environ.get("FIREBASE_URL")
 })
 
-pluto_url = "https://plutonium.pw/api/servers"
+pluto_url = os.environ.get("PLUTONIUM_URL")
 bot = commands.Bot(command_prefix="/", intents=discord.Intents.all())
 db_ref = db.reference("/")
 data = {}
