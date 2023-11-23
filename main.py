@@ -48,7 +48,7 @@ def get_pluto_server_text(pluto_servers, guild_obj):
         if text != "":
             text += "\n\n"
 
-        text += hostname + "\n"
+        text += hostname + " (" + game.upper() + ")\n"
         text += str(player_count) + "/" + str(max_player_count) + " players"
 
         if len(text) >= 1000:
