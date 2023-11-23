@@ -18,10 +18,10 @@ pluto_url = "https://plutonium.pw/api/servers"
 bot = commands.Bot(command_prefix="/", intents=discord.Intents.all())
 db_ref = db.reference("/")
 
-def get_pluto_server_text(id, pluto_servers):
+def get_pluto_server_text(pluto_servers, guild_obj):
     text = ""
-    db_games = db_ref.child(id).child("games").get()
-    db_server_name = db_ref.child(id).child("server_name").get()
+    guild_games = guild_obj["games"]
+    guild_server_name = guild_obj["server_name"]
 
     for pluto_server in pluto_servers:
         game = pluto_server["game"]
@@ -29,23 +29,16 @@ def get_pluto_server_text(id, pluto_servers):
         player_list = pluto_server["players"]
         max_player_count = pluto_server["maxplayers"]
 
-        valid_game = db_games == ""
-
-        for db_game in db_games.split():
-            if game.lower() == db_game.lower():
-                valid_game = True
-                break
-
-        if not valid_game:
+        if guild_games != "" and game not in guild_games.split():
             continue
 
-        if db_server_name.lower() not in hostname.lower():
+        if guild_server_name.lower() not in hostname.lower():
             continue
 
         player_count = len(player_list)
 
         if player_count > 0:
-            if len(text) > 0:
+            if text != "":
                 text += "\n\n"
 
             text += hostname + "\n"
@@ -60,34 +53,36 @@ def get_pluto_server_text(id, pluto_servers):
 async def main():
     pluto_page = requests.get(pluto_url)
     pluto_servers = pluto_page.json()
+    db_obj = db_ref.get()
 
     for guild in bot.guilds:
         id = str(guild.id)
-        db_channel_id = db_ref.child(id).child("channel").get()
-        db_message_id = db_ref.child(id).child("message").get()
-        db_text = db_ref.child(id).child("text").get()
+        guild_obj = db_obj[id]
+        guild_channel_id = guild_obj["channel"]
+        guild_message_id = guild_obj["message"]
+        guild_text = guild_obj["text"]
 
-        if not db_channel_id:
+        if not guild_channel_id:
             continue
 
-        text = get_pluto_server_text(id, pluto_servers)
+        text = get_pluto_server_text(pluto_servers, guild_obj)
 
-        if db_text == text:
+        if guild_text == text:
             continue
 
         db_ref.child(id).child("text").set(text)
 
-        channel = bot.get_channel(db_channel_id)
+        channel = bot.get_channel(guild_channel_id)
 
-        if db_message_id:
+        if guild_message_id:
             try:
-                message = await channel.fetch_message(db_message_id)
+                message = await channel.fetch_message(guild_message_id)
                 db_ref.child(id).child("message").set(0)
                 await message.delete()
             except Exception as e:
                 print(guild.name, "-", e)
 
-        if len(text) > 0:
+        if text != "":
             try:
                 msg = await channel.send(text)
                 db_ref.child(id).child("message").set(msg.id)
