@@ -33,8 +33,8 @@ def get_pluto_server_text(pluto_servers, guild_obj):
         player_list = pluto_server["players"]
         max_player_count = pluto_server["maxplayers"]
 
+        hostname = re.sub("\^[0-9]", "", hostname)
         player_count = len(player_list)
-        hostname = re.sub("\^([0-9])", "", hostname)
 
         if guild_games != "" and game not in guild_games.split():
             continue
