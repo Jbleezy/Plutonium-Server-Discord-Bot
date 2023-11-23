@@ -17,6 +17,7 @@ firebase_admin.initialize_app(cred, {
 pluto_url = "https://plutonium.pw/api/servers"
 bot = commands.Bot(command_prefix="/", intents=discord.Intents.all())
 db_ref = db.reference("/")
+data = {}
 
 def get_pluto_server_text(pluto_servers, guild_obj):
     text = ""
@@ -58,26 +59,29 @@ async def main():
     for guild in bot.guilds:
         id = str(guild.id)
         guild_obj = db_obj[id]
-        guild_channel_id = guild_obj["channel"]
-        guild_message_id = guild_obj["message"]
-        guild_text = guild_obj["text"]
+        guild_data = data.setdefault(id, {})
+        guild_data.setdefault("text", "")
+        guild_data.setdefault("message_id", 0)
 
-        if not guild_channel_id:
+        if not guild_obj["channel_id"]:
+            continue
+
+        channel = bot.get_channel(guild_obj["channel_id"])
+
+        if not channel:
             continue
 
         text = get_pluto_server_text(pluto_servers, guild_obj)
 
-        if guild_text == text:
+        if guild_data["text"] == text:
             continue
 
-        db_ref.child(id).child("text").set(text)
+        guild_data["text"] = text
 
-        channel = bot.get_channel(guild_channel_id)
-
-        if guild_message_id:
+        if guild_data["message_id"]:
             try:
-                message = await channel.fetch_message(guild_message_id)
-                db_ref.child(id).child("message").set(0)
+                message = await channel.fetch_message(guild_data["message_id"])
+                del guild_data["message_id"]
                 await message.delete()
             except Exception as e:
                 print(guild.name, "-", e)
@@ -85,14 +89,13 @@ async def main():
         if text != "":
             try:
                 msg = await channel.send(text)
-                db_ref.child(id).child("message").set(msg.id)
+                guild_data["message_id"] = msg.id
             except Exception as e:
                 print(guild.name, "-", e)
 
 @bot.event
 async def on_ready():
     await bot.tree.sync()
-
     main.start()
 
 @bot.event
@@ -100,9 +103,7 @@ async def on_guild_join(guild):
     id = str(guild.id)
     db_ref.child(id).child("server_name").set("")
     db_ref.child(id).child("games").set("")
-    db_ref.child(id).child("channel").set(0)
-    db_ref.child(id).child("message").set(0)
-    db_ref.child(id).child("text").set("")
+    db_ref.child(id).child("channel_id").set(0)
 
 @bot.tree.command(name="server-name", description="Set the name of the servers you want to show.")
 @app_commands.describe(name="Substring of the name of the servers")
@@ -149,7 +150,7 @@ async def set_game(interaction:discord.Interaction, game:app_commands.Choice[str
 @commands.has_permissions(administrator=True)
 async def set_channel(interaction:discord.Interaction, channel:discord.TextChannel):
     id = str(interaction.guild.id)
-    db_ref.child(id).child("channel").set(channel.id)
+    db_ref.child(id).child("channel_id").set(channel.id)
     await interaction.response.send_message("Channel set.")
 
 bot.run(os.environ.get("DISCORD_API_TOKEN"))
