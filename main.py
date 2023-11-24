@@ -22,10 +22,6 @@ data = {}
 
 def get_pluto_server_text(pluto_servers, guild_obj):
     text = ""
-    guild_games = guild_obj["games"]
-    guild_server_name = guild_obj["server_name"]
-    guild_max_player_servers = guild_obj["max_player_servers"]
-    guild_zero_player_servers = guild_obj["zero_player_servers"]
 
     for pluto_server in pluto_servers:
         game = pluto_server["game"]
@@ -36,16 +32,16 @@ def get_pluto_server_text(pluto_servers, guild_obj):
         hostname = re.sub("\^[0-9]", "", hostname)
         player_count = len(player_list)
 
-        if guild_games != "" and game not in guild_games.split():
+        if guild_obj["servers_game"] != "" and game not in guild_obj["servers_game"].split():
             continue
 
-        if guild_server_name.lower() not in hostname.lower():
+        if guild_obj["servers_name"].lower() not in hostname.lower():
             continue
 
-        if not guild_max_player_servers and player_count >= max_player_count:
+        if not guild_obj["servers_players_max"] and player_count >= max_player_count:
             continue
 
-        if not guild_zero_player_servers and player_count == 0:
+        if not guild_obj["servers_players_zero"] and player_count == 0:
             continue
 
         if text != "":
@@ -96,7 +92,7 @@ async def main():
             except Exception as e:
                 print(guild.name, "-", e)
 
-        if guild_obj["edit_message"]:
+        if guild_obj["message_edit"]:
             if text == "":
                 text = "No servers to show"
 
@@ -110,7 +106,7 @@ async def main():
                     message = await channel.send(text)
                     guild_data["message_id"] = message.id
 
-                    if guild_obj["pin_message"]:
+                    if guild_obj["message_pin"]:
                         await message.pin()
                 except Exception as e:
                     print(guild.name, "-", e)
@@ -129,7 +125,7 @@ async def main():
                 message = await channel.send(text)
                 guild_data["message_id"] = message.id
 
-                if guild_obj["pin_message"]:
+                if guild_obj["message_pin"]:
                     await message.pin()
             except Exception as e:
                 print(guild.name, "-", e)
@@ -142,23 +138,33 @@ async def on_ready():
 @bot.event
 async def on_guild_join(guild):
     id = str(guild.id)
-    db_ref.child(id).child("server_name").set("")
-    db_ref.child(id).child("games").set("")
     db_ref.child(id).child("channel_id").set(0)
-    db_ref.child(id).child("edit_message").set(False)
-    db_ref.child(id).child("pin_message").set(False)
-    db_ref.child(id).child("zero_player_servers").set(False)
-    db_ref.child(id).child("max_player_servers").set(True)
+    db_ref.child(id).child("servers_name").set("")
+    db_ref.child(id).child("servers_game").set("")
+    db_ref.child(id).child("servers_players_max").set(True)
+    db_ref.child(id).child("servers_players_zero").set(False)
+    db_ref.child(id).child("message_edit").set(False)
+    db_ref.child(id).child("message_pin").set(False)
 
-@bot.tree.command(name="server-name", description="Set the name of the servers you want to show.")
+@bot.tree.command(name="channel", description="Set the channel where you want the servers to show.")
+@app_commands.describe(channel="Channel where you want the servers to show")
+@commands.has_permissions(administrator=True)
+async def set_channel_id(interaction:discord.Interaction, channel:discord.TextChannel):
+    id = str(interaction.guild.id)
+    db_ref.child(id).child("channel_id").set(channel.id)
+    await interaction.response.send_message("Channel set to: " + channel.name)
+
+servers_group = app_commands.Group(name="servers", description="Commands for servers.")
+
+@servers_group.command(name="name", description="Set the name of the servers you want to show.")
 @app_commands.describe(name="Substring of the name of the servers")
 @commands.has_permissions(administrator=True)
-async def set_server_name(interaction:discord.Interaction, name:str):
+async def set_servers_name(interaction:discord.Interaction, name:str):
     id = str(interaction.guild.id)
-    db_ref.child(id).child("server_name").set(name)
-    await interaction.response.send_message("Server name set.")
+    db_ref.child(id).child("servers_name").set(name)
+    await interaction.response.send_message("Name of servers set to: " + name)
 
-@bot.tree.command(name="game", description="Add a game you want to show (default: All).")
+@servers_group.command(name="game", description="Add a game you want to show (default: All).")
 @app_commands.describe(game="All, IW5MP, T4MP, T4SP, T5MP, T5SP, T6MP, T6ZM")
 @app_commands.choices(game=[
     app_commands.Choice(name="All", value="all"),
@@ -171,63 +177,63 @@ async def set_server_name(interaction:discord.Interaction, name:str):
     app_commands.Choice(name="T6ZM", value="t6zm")
 ])
 @commands.has_permissions(administrator=True)
-async def set_game(interaction:discord.Interaction, game:app_commands.Choice[str]):
+async def set_servers_game(interaction:discord.Interaction, game:app_commands.Choice[str]):
     id = str(interaction.guild.id)
 
     if game.value == "all":
-        db_ref.child(id).child("games").set("")
+        db_ref.child(id).child("servers_game").set("")
     else:
-        db_games = db_ref.child(id).child("games").get()
+        db_games = db_ref.child(id).child("servers_game").get()
 
         if game.value in db_games.split():
             await interaction.response.send_message("Game already added.")
             return
 
         if db_games == "":
-            db_ref.child(id).child("games").set(game.value)
+            db_ref.child(id).child("servers_game").set(game.value)
         else:
-            db_ref.child(id).child("games").set(db_games + " " + game.value)
+            db_ref.child(id).child("servers_game").set(db_games + " " + game.value)
 
-    await interaction.response.send_message("Game added.")
+    await interaction.response.send_message("Game added: " + game.name)
 
-@bot.tree.command(name="channel", description="Set the channel where you want the servers to show.")
-@app_commands.describe(channel="Channel where you want the servers to show")
-@commands.has_permissions(administrator=True)
-async def set_channel(interaction:discord.Interaction, channel:discord.TextChannel):
-    id = str(interaction.guild.id)
-    db_ref.child(id).child("channel_id").set(channel.id)
-    await interaction.response.send_message("Channel set.")
+players_group = app_commands.Group(name="players", description="Commands for players on servers.", parent=servers_group)
 
-@bot.tree.command(name="edit-message", description="Edit existing message instead of creating a new message (default: False).")
+@players_group.command(name="max", description="Show servers that have max players (default: True).")
 @app_commands.describe(option="True or False")
 @commands.has_permissions(administrator=True)
-async def set_edit_message(interaction:discord.Interaction, option:bool):
+async def set_servers_players_max(interaction:discord.Interaction, option:bool):
     id = str(interaction.guild.id)
-    db_ref.child(id).child("edit_message").set(option)
-    await interaction.response.send_message("Edit message set.")
+    db_ref.child(id).child("servers_players_max").set(option)
+    await interaction.response.send_message("Show max player servers set to: " + str(option))
 
-@bot.tree.command(name="pin-message", description="Pin message when it is created (default: False).")
+@players_group.command(name="zero", description="Show servers that have zero players (default: False).")
 @app_commands.describe(option="True or False")
 @commands.has_permissions(administrator=True)
-async def set_pin_message(interaction:discord.Interaction, option:bool):
+async def set_servers_players_zero(interaction:discord.Interaction, option:bool):
     id = str(interaction.guild.id)
-    db_ref.child(id).child("pin_message").set(option)
-    await interaction.response.send_message("Pin message set.")
+    db_ref.child(id).child("servers_players_zero").set(option)
+    await interaction.response.send_message("Show zero player servers set to: " + str(option))
 
-@bot.tree.command(name="show-zero-player-servers", description="Show servers that have zero players (default: False).")
+bot.tree.add_command(servers_group)
+
+message_group = app_commands.Group(name="message", description="Commands for message.")
+
+@message_group.command(name="edit", description="Edit existing message instead of creating a new message (default: False).")
 @app_commands.describe(option="True or False")
 @commands.has_permissions(administrator=True)
-async def set_zero_player_servers(interaction:discord.Interaction, option:bool):
+async def set_message_edit(interaction:discord.Interaction, option:bool):
     id = str(interaction.guild.id)
-    db_ref.child(id).child("zero_player_servers").set(option)
-    await interaction.response.send_message("Show zero player servers set.")
+    db_ref.child(id).child("message_edit").set(option)
+    await interaction.response.send_message("Edit message set to: " + str(option))
 
-@bot.tree.command(name="show-max-player-servers", description="Show servers that have max players (default: True).")
+@message_group.command(name="pin", description="Pin message when it is created (default: False).")
 @app_commands.describe(option="True or False")
 @commands.has_permissions(administrator=True)
-async def set_max_player_servers(interaction:discord.Interaction, option:bool):
+async def set_message_pin(interaction:discord.Interaction, option:bool):
     id = str(interaction.guild.id)
-    db_ref.child(id).child("max_player_servers").set(option)
-    await interaction.response.send_message("Show max player servers set.")
+    db_ref.child(id).child("message_pin").set(option)
+    await interaction.response.send_message("Pin message set to: " + str(option))
+
+bot.tree.add_command(message_group)
 
 bot.run(os.environ.get("DISCORD_API_TOKEN"))
