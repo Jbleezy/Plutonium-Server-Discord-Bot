@@ -168,7 +168,7 @@ async def on_guild_join(guild):
 
 @bot.tree.command(name="channel", description="Set the channel where you want the servers to show.")
 @app_commands.describe(channel="Channel where you want the servers to show")
-@commands.has_permissions(administrator=True)
+@commands.has_guild_permissions(manage_messages=True)
 async def set_channel_id(interaction:discord.Interaction, channel:discord.TextChannel):
     id = str(interaction.guild.id)
     db_ref.child(id).child("channel_id").set(channel.id)
@@ -178,7 +178,7 @@ servers_group = app_commands.Group(name="servers", description="Commands for ser
 
 @servers_group.command(name="name", description="Set the name of the servers you want to show.")
 @app_commands.describe(name="Substring of the name of the servers")
-@commands.has_permissions(administrator=True)
+@commands.has_guild_permissions(manage_messages=True)
 async def set_servers_name(interaction:discord.Interaction, name:str):
     id = str(interaction.guild.id)
     db_ref.child(id).child("servers_name").set(name)
@@ -196,7 +196,7 @@ async def set_servers_name(interaction:discord.Interaction, name:str):
     app_commands.Choice(name="T6MP", value="t6mp"),
     app_commands.Choice(name="T6ZM", value="t6zm")
 ])
-@commands.has_permissions(administrator=True)
+@commands.has_guild_permissions(manage_messages=True)
 async def set_servers_game(interaction:discord.Interaction, game:app_commands.Choice[str]):
     id = str(interaction.guild.id)
 
@@ -220,7 +220,7 @@ players_group = app_commands.Group(name="players", description="Commands for pla
 
 @players_group.command(name="max", description="Show servers that have max players (default: True).")
 @app_commands.describe(option="True or False")
-@commands.has_permissions(administrator=True)
+@commands.has_guild_permissions(manage_messages=True)
 async def set_servers_players_max(interaction:discord.Interaction, option:bool):
     id = str(interaction.guild.id)
     db_ref.child(id).child("servers_players_max").set(option)
@@ -228,7 +228,7 @@ async def set_servers_players_max(interaction:discord.Interaction, option:bool):
 
 @players_group.command(name="zero", description="Show servers that have zero players (default: False).")
 @app_commands.describe(option="True or False")
-@commands.has_permissions(administrator=True)
+@commands.has_guild_permissions(manage_messages=True)
 async def set_servers_players_zero(interaction:discord.Interaction, option:bool):
     id = str(interaction.guild.id)
     db_ref.child(id).child("servers_players_zero").set(option)
@@ -240,7 +240,7 @@ message_group = app_commands.Group(name="message", description="Commands for mes
 
 @message_group.command(name="edit", description="Edit existing message instead of creating a new message (default: False).")
 @app_commands.describe(option="True or False")
-@commands.has_permissions(administrator=True)
+@commands.has_guild_permissions(manage_messages=True)
 async def set_message_edit(interaction:discord.Interaction, option:bool):
     id = str(interaction.guild.id)
     db_ref.child(id).child("message_edit").set(option)
@@ -248,7 +248,7 @@ async def set_message_edit(interaction:discord.Interaction, option:bool):
 
 @message_group.command(name="pin", description="Pin message when it is created (default: False).")
 @app_commands.describe(option="True or False")
-@commands.has_permissions(administrator=True)
+@commands.has_guild_permissions(manage_messages=True)
 async def set_message_pin(interaction:discord.Interaction, option:bool):
     id = str(interaction.guild.id)
     db_ref.child(id).child("message_pin").set(option)
