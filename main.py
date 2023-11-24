@@ -88,7 +88,7 @@ async def main():
         guild_obj = db_obj[id]
         guild_data = data.setdefault(id, {})
         guild_data.setdefault("text", {})
-        guild_data.setdefault("message_id", {})
+        guild_data.setdefault("message", {})
 
         if not guild_obj["channel_id"]:
             continue
@@ -102,21 +102,14 @@ async def main():
 
         for game in text:
             guild_data["text"].setdefault(game, "")
-            guild_data["message_id"].setdefault(game, 0)
+            guild_data["message"].setdefault(game, None)
 
             if guild_data["text"][game] == text[game]:
                 continue
 
             guild_data["text"][game] = text[game]
 
-            message = None
-
-            if guild_data["message_id"][game]:
-                try:
-                    message = await channel.fetch_message(guild_data["message_id"][game])
-                except Exception as e:
-                    print(guild.name, "-", guild.id)
-                    traceback.print_exc()
+            message = guild_data["message"][game]
 
             if guild_obj["message_edit"]:
                 if message:
@@ -128,7 +121,7 @@ async def main():
                 else:
                     try:
                         message = await channel.send(text[game])
-                        guild_data["message_id"][game] = message.id
+                        guild_data["message"][game] = message
 
                         if guild_obj["message_pin"]:
                             await message.pin()
@@ -138,7 +131,7 @@ async def main():
             else:
                 if message:
                     try:
-                        del guild_data["message_id"][game]
+                        del guild_data["message"][game]
                         await message.delete()
                     except Exception as e:
                         print(guild.name, "-", guild.id)
@@ -149,7 +142,7 @@ async def main():
 
                 try:
                     message = await channel.send(text[game])
-                    guild_data["message_id"][game] = message.id
+                    guild_data["message"][game] = message
 
                     if guild_obj["message_pin"]:
                         await message.pin()
