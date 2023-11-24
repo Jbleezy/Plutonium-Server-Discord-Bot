@@ -30,7 +30,8 @@ def get_pluto_server_text(pluto_servers, guild_obj):
         player_list = pluto_server["players"]
         max_player_count = pluto_server["maxplayers"]
 
-        hostname = re.sub("\^[0-9]", "", hostname)
+        hostname = re.sub("\^[0-9]", "", hostname) # remove text color change
+        hostname = re.sub("\.", "\\\.", hostname) # remove embedded links
         player_count = len(player_list)
 
         if guild_obj["servers_game"] != "" and game not in guild_obj["servers_game"].split():
@@ -48,6 +49,7 @@ def get_pluto_server_text(pluto_servers, guild_obj):
         if text != "":
             text += "\n\n"
 
+        # "\\" removes markdown formatting
         text += "\\" + hostname + " (" + game.upper() + ")\n"
         text += str(player_count) + "/" + str(max_player_count) + " players"
 
