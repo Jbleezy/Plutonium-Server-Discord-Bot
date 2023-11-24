@@ -22,10 +22,12 @@ db_ref = db.reference("/")
 data = {}
 
 def get_pluto_server_text(pluto_servers, guild_obj):
-    text = ""
+    text = {}
+    code_block_text = {}
+    prepend_text = {}
+    append_text = {}
 
     for pluto_server in pluto_servers:
-        text_to_add = ""
         game = pluto_server["game"]
         hostname = pluto_server["hostname"]
         player_list = pluto_server["players"]
@@ -33,6 +35,11 @@ def get_pluto_server_text(pluto_servers, guild_obj):
 
         hostname = re.sub("\^[0-9]", "", hostname) # remove text color change
         player_count = len(player_list)
+
+        code_block_text.setdefault(game, "")
+        prepend_text.setdefault(game, game.upper() + ":\n```\n")
+        append_text.setdefault(game, "\n```")
+        text_to_add = ""
 
         if guild_obj["servers_game"] != "" and game not in guild_obj["servers_game"].split():
             continue
@@ -46,21 +53,28 @@ def get_pluto_server_text(pluto_servers, guild_obj):
         if not guild_obj["servers_players_zero"] and player_count == 0:
             continue
 
-        # remove markdown formatting and embedded links
-        hostname = re.sub("([^a-zA-Z\d\\ ])", r"\\\1", hostname)
+        hostname = re.sub("`", "", hostname) # remove possible code block end
 
-        if text != "":
+        if code_block_text[game] != "":
             text_to_add += "\n\n"
 
-        text_to_add += hostname + " (" + game.upper() + ")\n"
+        text_to_add += hostname + "\n"
         text_to_add += str(player_count) + "/" + str(max_player_count) + " players"
 
-        if len(text) + len(text_to_add) > 2000:
-            break
+        total_len = len(prepend_text[game] + code_block_text[game] + text_to_add + append_text[game])
 
-        text += text_to_add
+        if total_len > 2000:
+            continue
 
-    return text
+        code_block_text[game] += text_to_add
+
+    for game in code_block_text:
+        if guild_obj["message_edit"] and code_block_text[game] == "":
+            code_block_text[game] = "No servers to show"
+
+        text[game] = prepend_text[game] + code_block_text[game] + append_text[game]
+
+    return text, code_block_text
 
 @tasks.loop(seconds=5)
 async def main():
@@ -73,8 +87,8 @@ async def main():
         id = str(guild.id)
         guild_obj = db_obj[id]
         guild_data = data.setdefault(id, {})
-        guild_data.setdefault("text", "")
-        guild_data.setdefault("message_id", 0)
+        guild_data.setdefault("text", {})
+        guild_data.setdefault("message_id", {})
 
         if not guild_obj["channel_id"]:
             continue
@@ -84,63 +98,64 @@ async def main():
         if not channel:
             continue
 
-        text = get_pluto_server_text(pluto_servers, guild_obj)
+        text, code_block_text = get_pluto_server_text(pluto_servers, guild_obj)
 
-        if guild_data["text"] == text:
-            continue
+        for game in text:
+            guild_data["text"].setdefault(game, "")
+            guild_data["message_id"].setdefault(game, 0)
 
-        guild_data["text"] = text
+            if guild_data["text"][game] == text[game]:
+                continue
 
-        message = None
+            guild_data["text"][game] = text[game]
 
-        if guild_data["message_id"]:
-            try:
-                message = await channel.fetch_message(guild_data["message_id"])
-            except Exception as e:
-                print(guild.name, "-", guild.id)
-                traceback.print_exc()
+            message = None
 
-        if guild_obj["message_edit"]:
-            if text == "":
-                text = "No servers to show"
-
-            if message:
+            if guild_data["message_id"][game]:
                 try:
-                    await message.edit(content=text)
+                    message = await channel.fetch_message(guild_data["message_id"][game])
                 except Exception as e:
                     print(guild.name, "-", guild.id)
                     traceback.print_exc()
+
+            if guild_obj["message_edit"]:
+                if message:
+                    try:
+                        await message.edit(content=text[game])
+                    except Exception as e:
+                        print(guild.name, "-", guild.id)
+                        traceback.print_exc()
+                else:
+                    try:
+                        message = await channel.send(text[game])
+                        guild_data["message_id"][game] = message.id
+
+                        if guild_obj["message_pin"]:
+                            await message.pin()
+                    except Exception as e:
+                        print(guild.name, "-", guild.id)
+                        traceback.print_exc()
             else:
+                if message:
+                    try:
+                        del guild_data["message_id"][game]
+                        await message.delete()
+                    except Exception as e:
+                        print(guild.name, "-", guild.id)
+                        traceback.print_exc()
+
+                if code_block_text[game] == "":
+                    return
+
                 try:
-                    message = await channel.send(text)
-                    guild_data["message_id"] = message.id
+                    message = await channel.send(text[game])
+                    guild_data["message_id"][game] = message.id
 
                     if guild_obj["message_pin"]:
                         await message.pin()
                 except Exception as e:
                     print(guild.name, "-", guild.id)
                     traceback.print_exc()
-        else:
-            if message:
-                try:
-                    del guild_data["message_id"]
-                    await message.delete()
-                except Exception as e:
-                    print(guild.name, "-", guild.id)
-                    traceback.print_exc()
-
-            if text == "":
-                return
-
-            try:
-                message = await channel.send(text)
-                guild_data["message_id"] = message.id
-
-                if guild_obj["message_pin"]:
-                    await message.pin()
-            except Exception as e:
-                print(guild.name, "-", guild.id)
-                traceback.print_exc()
 
 @bot.event
 async def on_ready():
