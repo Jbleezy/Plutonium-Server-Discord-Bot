@@ -25,6 +25,7 @@ def get_pluto_server_text(pluto_servers, guild_obj):
     text = ""
 
     for pluto_server in pluto_servers:
+        text_to_add = ""
         game = pluto_server["game"]
         hostname = pluto_server["hostname"]
         player_list = pluto_server["players"]
@@ -49,13 +50,15 @@ def get_pluto_server_text(pluto_servers, guild_obj):
         hostname = re.sub("([^a-zA-Z\d\\ ])", r"\\\1", hostname)
 
         if text != "":
-            text += "\n\n"
+            text_to_add += "\n\n"
 
-        text += hostname + " (" + game.upper() + ")\n"
-        text += str(player_count) + "/" + str(max_player_count) + " players"
+        text_to_add += hostname + " (" + game.upper() + ")\n"
+        text_to_add += str(player_count) + "/" + str(max_player_count) + " players"
 
-        if len(text) >= 1000:
+        if len(text) + len(text_to_add) > 2000:
             break
+
+        text += text_to_add
 
     return text
 
