@@ -3,6 +3,7 @@ import firebase_admin
 import os
 import re
 import requests
+import traceback
 from discord import app_commands
 from discord.ext import commands, tasks
 from dotenv import load_dotenv
@@ -90,7 +91,8 @@ async def main():
             try:
                 message = await channel.fetch_message(guild_data["message_id"])
             except Exception as e:
-                print(guild.name, "-", e)
+                print(guild.name, "-", guild.id)
+                traceback.print_exc()
 
         if guild_obj["message_edit"]:
             if text == "":
@@ -100,7 +102,8 @@ async def main():
                 try:
                     await message.edit(content=text)
                 except Exception as e:
-                    print(guild.name, "-", e)
+                    print(guild.name, "-", guild.id)
+                    traceback.print_exc()
             else:
                 try:
                     message = await channel.send(text)
@@ -109,14 +112,16 @@ async def main():
                     if guild_obj["message_pin"]:
                         await message.pin()
                 except Exception as e:
-                    print(guild.name, "-", e)
+                    print(guild.name, "-", guild.id)
+                    traceback.print_exc()
         else:
             if message:
                 try:
                     del guild_data["message_id"]
                     await message.delete()
                 except Exception as e:
-                    print(guild.name, "-", e)
+                    print(guild.name, "-", guild.id)
+                    traceback.print_exc()
 
             if text == "":
                 return
@@ -128,7 +133,8 @@ async def main():
                 if guild_obj["message_pin"]:
                     await message.pin()
             except Exception as e:
-                print(guild.name, "-", e)
+                print(guild.name, "-", guild.id)
+                traceback.print_exc()
 
 @bot.event
 async def on_ready():
