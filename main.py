@@ -5,7 +5,8 @@ import os
 import re
 import requests
 import traceback
-from discord import app_commands
+from datetime import datetime, timedelta
+from discord import app_commands, utils
 from discord.ext import commands, tasks
 from dotenv import load_dotenv
 from firebase_admin import credentials, db
@@ -17,8 +18,6 @@ firebase_admin.initialize_app(cred, {
     "databaseURL": os.environ.get("FIREBASE_URL")
 })
 
-loop_interval = 5
-prev_loop_time = 0
 pluto_url = os.environ.get("PLUTONIUM_URL")
 bot = commands.Bot(command_prefix="/", intents=discord.Intents.all())
 db_ref = db.reference("/")
@@ -148,14 +147,9 @@ async def guild_main(guild, db_obj, pluto_servers):
                 print(guild.name, "-", guild.id)
                 traceback.print_exc(limit=1)
 
-@tasks.loop(seconds=loop_interval)
+@tasks.loop()
 async def main():
-    global prev_loop_time
-
-    if bot.loop.time() - prev_loop_time < loop_interval:
-        return
-
-    prev_loop_time = bot.loop.time()
+    start_time = datetime.now()
 
     pluto_page = requests.get(pluto_url)
     pluto_servers = pluto_page.json()
@@ -163,6 +157,8 @@ async def main():
     db_obj = db_ref.get()
 
     await asyncio.gather(*[guild_main(guild, db_obj, pluto_servers) for guild in bot.guilds])
+
+    await utils.sleep_until(start_time + timedelta(seconds=5))
 
 @bot.event
 async def on_ready():
