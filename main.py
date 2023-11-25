@@ -1,3 +1,4 @@
+import asyncio
 import discord
 import firebase_admin
 import os
@@ -76,72 +77,44 @@ def get_pluto_server_text(pluto_servers, guild_obj):
 
     return text, code_block_text
 
-@tasks.loop(seconds=5)
-async def main():
-    pluto_page = requests.get(pluto_url)
-    pluto_servers = pluto_page.json()
-    pluto_servers = sorted(pluto_servers, key=lambda a : (a["game"], a["hostname"]))
-    db_obj = db_ref.get()
+async def guild_main(guild, db_obj, pluto_servers):
+    id = str(guild.id)
+    guild_obj = db_obj[id]
+    guild_data = data.setdefault(id, {})
+    guild_data.setdefault("text", {})
+    guild_data.setdefault("message", {})
 
-    for guild in bot.guilds:
-        id = str(guild.id)
-        guild_obj = db_obj[id]
-        guild_data = data.setdefault(id, {})
-        guild_data.setdefault("text", {})
-        guild_data.setdefault("message", {})
+    if not guild_obj["channel_id"]:
+        return
 
-        if not guild_obj["channel_id"]:
+    channel = bot.get_channel(guild_obj["channel_id"])
+
+    if not channel:
+        return
+
+    text, code_block_text = get_pluto_server_text(pluto_servers, guild_obj)
+
+    for game in text:
+        guild_data["text"].setdefault(game, "")
+        guild_data["message"].setdefault(game, None)
+
+        if guild_data["text"][game] == text[game]:
             continue
 
-        channel = bot.get_channel(guild_obj["channel_id"])
+        guild_data["text"][game] = text[game]
 
-        if not channel:
-            continue
+        message = guild_data["message"][game]
 
-        text, code_block_text = get_pluto_server_text(pluto_servers, guild_obj)
+        if guild_obj["message_edit"]:
+            if message:
+                try:
+                    await message.edit(content=text[game])
+                except Exception as e:
+                    message = None
+                    print(guild.name, "-", guild.id)
+                    traceback.print_exc(limit=1)
 
-        for game in text:
-            guild_data["text"].setdefault(game, "")
-            guild_data["message"].setdefault(game, None)
-
-            if guild_data["text"][game] == text[game]:
-                continue
-
-            guild_data["text"][game] = text[game]
-
-            message = guild_data["message"][game]
-
-            if guild_obj["message_edit"]:
-                if message:
-                    try:
-                        await message.edit(content=text[game])
-                    except Exception as e:
-                        message = None
-                        print(guild.name, "-", guild.id)
-                        traceback.print_exc(limit=1)
-
-                if not message:
-                    try:
-                        message = await channel.send(text[game])
-                        guild_data["message"][game] = message
-
-                        if guild_obj["message_pin"]:
-                            await message.pin()
-                    except Exception as e:
-                        print(guild.name, "-", guild.id)
-                        traceback.print_exc(limit=1)
-            else:
-                if message:
-                    try:
-                        del guild_data["message"][game]
-                        await message.delete()
-                    except Exception as e:
-                        print(guild.name, "-", guild.id)
-                        traceback.print_exc(limit=1)
-
-                if code_block_text[game] == "":
-                    return
-
+            if not message:
                 try:
                     message = await channel.send(text[game])
                     guild_data["message"][game] = message
@@ -151,6 +124,36 @@ async def main():
                 except Exception as e:
                     print(guild.name, "-", guild.id)
                     traceback.print_exc(limit=1)
+        else:
+            if message:
+                try:
+                    del guild_data["message"][game]
+                    await message.delete()
+                except Exception as e:
+                    print(guild.name, "-", guild.id)
+                    traceback.print_exc(limit=1)
+
+            if code_block_text[game] == "":
+                return
+
+            try:
+                message = await channel.send(text[game])
+                guild_data["message"][game] = message
+
+                if guild_obj["message_pin"]:
+                    await message.pin()
+            except Exception as e:
+                print(guild.name, "-", guild.id)
+                traceback.print_exc(limit=1)
+
+@tasks.loop(seconds=5)
+async def main():
+    pluto_page = requests.get(pluto_url)
+    pluto_servers = pluto_page.json()
+    pluto_servers = sorted(pluto_servers, key=lambda a : (a["game"], a["hostname"]))
+    db_obj = db_ref.get()
+
+    await asyncio.gather(*[guild_main(guild, db_obj, pluto_servers) for guild in bot.guilds])
 
 @bot.event
 async def on_ready():
