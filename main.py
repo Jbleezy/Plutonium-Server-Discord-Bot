@@ -118,7 +118,7 @@ async def main():
                     except Exception as e:
                         message = None
                         print(guild.name, "-", guild.id)
-                        traceback.print_exc()
+                        traceback.print_exc(limit=1)
 
                 if not message:
                     try:
@@ -129,7 +129,7 @@ async def main():
                             await message.pin()
                     except Exception as e:
                         print(guild.name, "-", guild.id)
-                        traceback.print_exc()
+                        traceback.print_exc(limit=1)
             else:
                 if message:
                     try:
@@ -137,7 +137,7 @@ async def main():
                         await message.delete()
                     except Exception as e:
                         print(guild.name, "-", guild.id)
-                        traceback.print_exc()
+                        traceback.print_exc(limit=1)
 
                 if code_block_text[game] == "":
                     return
@@ -150,7 +150,7 @@ async def main():
                         await message.pin()
                 except Exception as e:
                     print(guild.name, "-", guild.id)
-                    traceback.print_exc()
+                    traceback.print_exc(limit=1)
 
 @bot.event
 async def on_ready():
