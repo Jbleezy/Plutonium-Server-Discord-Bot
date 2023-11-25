@@ -116,9 +116,11 @@ async def main():
                     try:
                         await message.edit(content=text[game])
                     except Exception as e:
+                        message = None
                         print(guild.name, "-", guild.id)
                         traceback.print_exc()
-                else:
+
+                if not message:
                     try:
                         message = await channel.send(text[game])
                         guild_data["message"][game] = message
