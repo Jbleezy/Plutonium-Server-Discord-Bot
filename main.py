@@ -17,6 +17,8 @@ firebase_admin.initialize_app(cred, {
     "databaseURL": os.environ.get("FIREBASE_URL")
 })
 
+loop_interval = 5
+prev_loop_time = 0
 pluto_url = os.environ.get("PLUTONIUM_URL")
 bot = commands.Bot(command_prefix="/", intents=discord.Intents.all())
 db_ref = db.reference("/")
@@ -146,8 +148,15 @@ async def guild_main(guild, db_obj, pluto_servers):
                 print(guild.name, "-", guild.id)
                 traceback.print_exc(limit=1)
 
-@tasks.loop(seconds=5)
+@tasks.loop(seconds=loop_interval)
 async def main():
+    global prev_loop_time
+
+    if bot.loop.time() - prev_loop_time < loop_interval:
+        return
+
+    prev_loop_time = bot.loop.time()
+
     pluto_page = requests.get(pluto_url)
     pluto_servers = pluto_page.json()
     pluto_servers = sorted(pluto_servers, key=lambda a : (a["game"], a["hostname"]))
