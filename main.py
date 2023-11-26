@@ -81,9 +81,9 @@ def get_pluto_server_text(pluto_servers, guild_obj):
 async def guild_main(guild, db_obj, pluto_servers):
     id = str(guild.id)
     guild_obj = db_obj[id]
-    guild_data = data.setdefault(id, {})
-    guild_data.setdefault("text", {})
-    guild_data.setdefault("message", {})
+
+    if guild_obj["servers_name"] == "":
+        return
 
     if not guild_obj["channel_id"]:
         return
@@ -92,6 +92,10 @@ async def guild_main(guild, db_obj, pluto_servers):
 
     if not channel:
         return
+
+    guild_data = data.setdefault(id, {})
+    guild_data.setdefault("text", {})
+    guild_data.setdefault("message", {})
 
     text, code_block_text = get_pluto_server_text(pluto_servers, guild_obj)
 
