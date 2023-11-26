@@ -181,9 +181,10 @@ async def on_ready():
 @app_commands.describe(channel="Channel where you want the servers to show")
 @commands.has_guild_permissions(manage_messages=True)
 async def set_channel_id(interaction:discord.Interaction, channel:discord.TextChannel):
+    await interaction.response.send_message("Channel set to: " + channel.name)
+
     id = str(interaction.guild.id)
     db_ref.child(id).child("channel_id").set(channel.id)
-    await interaction.response.send_message("Channel set to: " + channel.name)
 
 servers_group = app_commands.Group(name="servers", description="Commands for servers.")
 
@@ -191,9 +192,10 @@ servers_group = app_commands.Group(name="servers", description="Commands for ser
 @app_commands.describe(name="Substring of the name of the servers")
 @commands.has_guild_permissions(manage_messages=True)
 async def set_servers_name(interaction:discord.Interaction, name:str):
+    await interaction.response.send_message("Name of servers set to: " + name)
+
     id = str(interaction.guild.id)
     db_ref.child(id).child("servers_name").set(name)
-    await interaction.response.send_message("Name of servers set to: " + name)
 
 @servers_group.command(name="game", description="Add a game you want to show (default: All).")
 @app_commands.describe(game="All, IW5MP, T4MP, T4SP, T5MP, T5SP, T6MP, T6ZM")
@@ -209,6 +211,8 @@ async def set_servers_name(interaction:discord.Interaction, name:str):
 ])
 @commands.has_guild_permissions(manage_messages=True)
 async def set_servers_game(interaction:discord.Interaction, game:app_commands.Choice[str]):
+    await interaction.response.send_message("Game added: " + game.name)
+
     id = str(interaction.guild.id)
 
     if game.value == "all":
@@ -217,7 +221,6 @@ async def set_servers_game(interaction:discord.Interaction, game:app_commands.Ch
         db_games = db_ref.child(id).child("servers_game").get()
 
         if game.value in db_games.split():
-            await interaction.response.send_message("Game already added.")
             return
 
         if db_games == "":
@@ -225,25 +228,25 @@ async def set_servers_game(interaction:discord.Interaction, game:app_commands.Ch
         else:
             db_ref.child(id).child("servers_game").set(db_games + " " + game.value)
 
-    await interaction.response.send_message("Game added: " + game.name)
-
 players_group = app_commands.Group(name="players", description="Commands for players on servers.", parent=servers_group)
 
 @players_group.command(name="max", description="Show servers that have max players (default: True).")
 @app_commands.describe(option="True or False")
 @commands.has_guild_permissions(manage_messages=True)
 async def set_servers_players_max(interaction:discord.Interaction, option:bool):
+    await interaction.response.send_message("Show max player servers set to: " + str(option))
+
     id = str(interaction.guild.id)
     db_ref.child(id).child("servers_players_max").set(option)
-    await interaction.response.send_message("Show max player servers set to: " + str(option))
 
 @players_group.command(name="zero", description="Show servers that have zero players (default: False).")
 @app_commands.describe(option="True or False")
 @commands.has_guild_permissions(manage_messages=True)
 async def set_servers_players_zero(interaction:discord.Interaction, option:bool):
+    await interaction.response.send_message("Show zero player servers set to: " + str(option))
+
     id = str(interaction.guild.id)
     db_ref.child(id).child("servers_players_zero").set(option)
-    await interaction.response.send_message("Show zero player servers set to: " + str(option))
 
 bot.tree.add_command(servers_group)
 
@@ -253,17 +256,19 @@ message_group = app_commands.Group(name="message", description="Commands for mes
 @app_commands.describe(option="True or False")
 @commands.has_guild_permissions(manage_messages=True)
 async def set_message_edit(interaction:discord.Interaction, option:bool):
+    await interaction.response.send_message("Edit message set to: " + str(option))
+
     id = str(interaction.guild.id)
     db_ref.child(id).child("message_edit").set(option)
-    await interaction.response.send_message("Edit message set to: " + str(option))
 
 @message_group.command(name="pin", description="Pin message when it is created (default: False).")
 @app_commands.describe(option="True or False")
 @commands.has_guild_permissions(manage_messages=True)
 async def set_message_pin(interaction:discord.Interaction, option:bool):
+    await interaction.response.send_message("Pin message set to: " + str(option))
+
     id = str(interaction.guild.id)
     db_ref.child(id).child("message_pin").set(option)
-    await interaction.response.send_message("Pin message set to: " + str(option))
 
 bot.tree.add_command(message_group)
 
