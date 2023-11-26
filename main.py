@@ -38,13 +38,13 @@ def get_pluto_server_text(pluto_servers, guild_obj):
         hostname = re.sub("\^[0-9]", "", hostname) # remove text color change
         player_count = len(player_list)
 
+        if guild_obj["servers_game"] != "" and game not in guild_obj["servers_game"].split():
+            continue
+
         code_block_text.setdefault(game, "")
         prepend_text.setdefault(game, game.upper() + ":\n```\n")
         append_text.setdefault(game, "\n```")
         text_to_add = ""
-
-        if guild_obj["servers_game"] != "" and game not in guild_obj["servers_game"].split():
-            continue
 
         if guild_obj["servers_name"].lower() not in hostname.lower():
             continue
