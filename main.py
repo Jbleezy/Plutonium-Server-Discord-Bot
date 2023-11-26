@@ -80,7 +80,15 @@ def get_pluto_server_text(pluto_servers, guild_obj):
 
 async def guild_main(guild, db_obj, pluto_servers):
     id = str(guild.id)
-    guild_obj = db_obj[id]
+
+    guild_obj = db_obj.setdefault(id, {})
+    guild_obj.setdefault("channel_id", 0)
+    guild_obj.setdefault("servers_name", "")
+    guild_obj.setdefault("servers_game", "")
+    guild_obj.setdefault("servers_players_max", True)
+    guild_obj.setdefault("servers_players_zero", False)
+    guild_obj.setdefault("message_edit", False)
+    guild_obj.setdefault("message_pin", False)
 
     if guild_obj["servers_name"] == "":
         return
@@ -168,17 +176,6 @@ async def main():
 async def on_ready():
     await bot.tree.sync()
     main.start()
-
-@bot.event
-async def on_guild_join(guild):
-    id = str(guild.id)
-    db_ref.child(id).child("channel_id").set(0)
-    db_ref.child(id).child("servers_name").set("")
-    db_ref.child(id).child("servers_game").set("")
-    db_ref.child(id).child("servers_players_max").set(True)
-    db_ref.child(id).child("servers_players_zero").set(False)
-    db_ref.child(id).child("message_edit").set(False)
-    db_ref.child(id).child("message_pin").set(False)
 
 @bot.tree.command(name="channel", description="Set the channel where you want the servers to show.")
 @app_commands.describe(channel="Channel where you want the servers to show")
