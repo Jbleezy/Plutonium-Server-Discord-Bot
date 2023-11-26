@@ -220,13 +220,14 @@ async def set_servers_game(interaction:discord.Interaction, game:app_commands.Ch
     else:
         db_games = db_ref.child(id).child("servers_game").get()
 
+        if not db_games:
+            db_ref.child(id).child("servers_game").set(game.value)
+            return
+
         if game.value in db_games.split():
             return
 
-        if db_games == "":
-            db_ref.child(id).child("servers_game").set(game.value)
-        else:
-            db_ref.child(id).child("servers_game").set(db_games + " " + game.value)
+        db_ref.child(id).child("servers_game").set(db_games + " " + game.value)
 
 players_group = app_commands.Group(name="players", description="Commands for players on servers.", parent=servers_group)
 
