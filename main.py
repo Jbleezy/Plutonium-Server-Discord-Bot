@@ -23,61 +23,18 @@ bot = commands.Bot(command_prefix="/", intents=discord.Intents.all())
 db_ref = db.reference("/")
 data = {}
 
-def get_pluto_server_text(pluto_servers, guild_obj):
-    text = {}
-    code_block_text = {}
-    prepend_text = {}
-    append_text = {}
+@tasks.loop()
+async def main():
+    start_time = datetime.now()
 
-    for pluto_server in pluto_servers:
-        game = pluto_server["game"]
-        hostname = pluto_server["hostname"]
-        player_list = pluto_server["players"]
-        max_player_count = pluto_server["maxplayers"]
+    pluto_page = requests.get(pluto_url)
+    pluto_servers = pluto_page.json()
+    pluto_servers = sorted(pluto_servers, key=lambda a : (a["game"], a["hostname"]))
+    db_obj = db_ref.get()
 
-        hostname = re.sub("\^[0-9]", "", hostname) # remove text color change
-        player_count = len(player_list)
+    await asyncio.gather(*[guild_main(guild, db_obj, pluto_servers) for guild in bot.guilds])
 
-        code_block_text.setdefault(game, "")
-        prepend_text.setdefault(game, game.upper() + ":\n```\n")
-        append_text.setdefault(game, "\n```")
-        text_to_add = ""
-
-        if guild_obj["servers_name"].lower() not in hostname.lower():
-            continue
-
-        if guild_obj["servers_game"] != "" and game not in guild_obj["servers_game"].split():
-            continue
-
-        if not guild_obj["servers_players_max"] and player_count >= max_player_count:
-            continue
-
-        if not guild_obj["servers_players_zero"] and player_count == 0:
-            continue
-
-        hostname = re.sub("`", "", hostname) # remove possible code block end
-
-        if code_block_text[game] != "":
-            text_to_add += "\n\n"
-
-        text_to_add += hostname + "\n"
-        text_to_add += str(player_count) + "/" + str(max_player_count) + " players"
-
-        total_len = len(prepend_text[game] + code_block_text[game] + text_to_add + append_text[game])
-
-        if total_len > 2000:
-            continue
-
-        code_block_text[game] += text_to_add
-
-    for game in code_block_text:
-        if guild_obj["message_edit"] and code_block_text[game] == "":
-            if guild_obj["servers_game"] == "" or game in guild_obj["servers_game"].split():
-                code_block_text[game] = "No servers to show"
-
-        text[game] = prepend_text[game] + code_block_text[game] + append_text[game]
-
-    return text, code_block_text
+    await utils.sleep_until(start_time + timedelta(seconds=5))
 
 async def guild_main(guild, db_obj, pluto_servers):
     id = str(guild.id)
@@ -167,18 +124,61 @@ async def guild_main(guild, db_obj, pluto_servers):
                 print(guild.name, "-", guild.id)
                 traceback.print_exc(limit=1)
 
-@tasks.loop()
-async def main():
-    start_time = datetime.now()
+def get_pluto_server_text(pluto_servers, guild_obj):
+    text = {}
+    code_block_text = {}
+    prepend_text = {}
+    append_text = {}
 
-    pluto_page = requests.get(pluto_url)
-    pluto_servers = pluto_page.json()
-    pluto_servers = sorted(pluto_servers, key=lambda a : (a["game"], a["hostname"]))
-    db_obj = db_ref.get()
+    for pluto_server in pluto_servers:
+        game = pluto_server["game"]
+        hostname = pluto_server["hostname"]
+        player_list = pluto_server["players"]
+        max_player_count = pluto_server["maxplayers"]
 
-    await asyncio.gather(*[guild_main(guild, db_obj, pluto_servers) for guild in bot.guilds])
+        hostname = re.sub("\^[0-9]", "", hostname) # remove text color change
+        player_count = len(player_list)
 
-    await utils.sleep_until(start_time + timedelta(seconds=5))
+        code_block_text.setdefault(game, "")
+        prepend_text.setdefault(game, game.upper() + ":\n```\n")
+        append_text.setdefault(game, "\n```")
+        text_to_add = ""
+
+        if guild_obj["servers_name"].lower() not in hostname.lower():
+            continue
+
+        if guild_obj["servers_game"] != "" and game not in guild_obj["servers_game"].split():
+            continue
+
+        if not guild_obj["servers_players_max"] and player_count >= max_player_count:
+            continue
+
+        if not guild_obj["servers_players_zero"] and player_count == 0:
+            continue
+
+        hostname = re.sub("`", "", hostname) # remove possible code block end
+
+        if code_block_text[game] != "":
+            text_to_add += "\n\n"
+
+        text_to_add += hostname + "\n"
+        text_to_add += str(player_count) + "/" + str(max_player_count) + " players"
+
+        total_len = len(prepend_text[game] + code_block_text[game] + text_to_add + append_text[game])
+
+        if total_len > 2000:
+            continue
+
+        code_block_text[game] += text_to_add
+
+    for game in code_block_text:
+        if guild_obj["message_edit"] and code_block_text[game] == "":
+            if guild_obj["servers_game"] == "" or game in guild_obj["servers_game"].split():
+                code_block_text[game] = "No servers to show"
+
+        text[game] = prepend_text[game] + code_block_text[game] + append_text[game]
+
+    return text, code_block_text
 
 @main.before_loop
 async def delete_prev_messages():
