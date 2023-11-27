@@ -180,6 +180,34 @@ async def main():
 
     await utils.sleep_until(start_time + timedelta(seconds=5))
 
+@main.before_loop
+async def delete_prev_messages():
+    db_obj = db_ref.get()
+
+    await asyncio.gather(*[guild_delete_prev_messages(guild, db_obj) for guild in bot.guilds])
+
+async def guild_delete_prev_messages(guild, db_obj):
+    id = str(guild.id)
+
+    guild_obj = db_obj.setdefault(id, {})
+    guild_obj.setdefault("channel_id", 0)
+
+    if not guild_obj["channel_id"]:
+        return
+
+    channel = bot.get_channel(guild_obj["channel_id"])
+
+    if not channel:
+        return
+
+    bot_messages = []
+
+    async for message in channel.history(limit=100):
+        if message.author == bot.user:
+            bot_messages.append(message)
+
+    await channel.delete_messages(bot_messages)
+
 @bot.event
 async def on_ready():
     await bot.tree.sync()
