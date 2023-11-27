@@ -38,15 +38,15 @@ def get_pluto_server_text(pluto_servers, guild_obj):
         hostname = re.sub("\^[0-9]", "", hostname) # remove text color change
         player_count = len(player_list)
 
-        if guild_obj["servers_game"] != "" and game not in guild_obj["servers_game"].split():
-            continue
-
         code_block_text.setdefault(game, "")
         prepend_text.setdefault(game, game.upper() + ":\n```\n")
         append_text.setdefault(game, "\n```")
         text_to_add = ""
 
         if guild_obj["servers_name"].lower() not in hostname.lower():
+            continue
+
+        if guild_obj["servers_game"] != "" and game not in guild_obj["servers_game"].split():
             continue
 
         if not guild_obj["servers_players_max"] and player_count >= max_player_count:
@@ -72,7 +72,8 @@ def get_pluto_server_text(pluto_servers, guild_obj):
 
     for game in code_block_text:
         if guild_obj["message_edit"] and code_block_text[game] == "":
-            code_block_text[game] = "No servers to show"
+            if guild_obj["servers_game"] == "" or game in guild_obj["servers_game"].split():
+                code_block_text[game] = "No servers to show"
 
         text[game] = prepend_text[game] + code_block_text[game] + append_text[game]
 
@@ -118,6 +119,16 @@ async def guild_main(guild, db_obj, pluto_servers):
 
         message = guild_data["message"][game]
 
+        if message and code_block_text[game] == "":
+            try:
+                del guild_data["message"][game]
+                await message.delete()
+            except Exception as e:
+                print(guild.name, "-", guild.id)
+                traceback.print_exc(limit=1)
+
+            continue
+
         if guild_obj["message_edit"]:
             if message:
                 try:
@@ -145,9 +156,6 @@ async def guild_main(guild, db_obj, pluto_servers):
                 except Exception as e:
                     print(guild.name, "-", guild.id)
                     traceback.print_exc(limit=1)
-
-            if code_block_text[game] == "":
-                return
 
             try:
                 message = await channel.send(text[game])
