@@ -76,13 +76,14 @@ async def guild_main(guild, db_obj, pluto_servers):
 
         message = guild_data["message"][game]
 
-        if message and code_block_text[game] == "":
-            try:
-                del guild_data["message"][game]
-                await message.delete()
-            except Exception as e:
-                print(guild.name, "-", guild.id)
-                traceback.print_exc(limit=1)
+        if code_block_text[game] == "":
+            if message:
+                try:
+                    del guild_data["message"][game]
+                    await message.delete()
+                except Exception as e:
+                    print(guild.name, "-", guild.id)
+                    traceback.print_exc(limit=1)
 
             continue
 
