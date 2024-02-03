@@ -29,6 +29,7 @@ async def main():
 
     pluto_page = requests.get(pluto_url)
     pluto_servers = pluto_page.json()
+    pluto_servers = pluto_servers["servers"]
     pluto_servers = sorted(pluto_servers, key=lambda a : (a["game"], a["hostname"]))
     db_obj = db_ref.get()
 
