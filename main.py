@@ -35,7 +35,7 @@ async def main():
 
     await asyncio.gather(*[guild_main(guild, db_obj, pluto_servers) for guild in bot.guilds])
 
-    await utils.sleep_until(start_time + timedelta(seconds=5))
+    await utils.sleep_until(start_time + timedelta(seconds=60))
 
 async def guild_main(guild, db_obj, pluto_servers):
     id = str(guild.id)
